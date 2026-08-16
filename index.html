@@ -1,69 +1,257 @@
-# 纳指100 定投计算器（多货币版）
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纳指100 定投计算器（多货币可定制）</title>
+    <style>
+        body {
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f5f6fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            max-width: 460px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #1f2937;
+            font-size: 22px;
+        }
+        .sub {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 6px;
+            color: #374151;
+            font-weight: 500;
+            margin-top: 15px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            background: white;
+        }
+        button {
+            width: 100%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        button:active {
+            background: #2563eb;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 16px;
+            background: #f0f9ff;
+            border-radius: 10px;
+            display: none;
+        }
+        .result .row {
+            margin: 8px 0;
+            font-size: 15px;
+            color: #374151;
+        }
+        .result .amount {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 8px 0;
+            text-align: center;
+        }
+        .result .detail {
+            font-size: 14px;
+            color: #475569;
+            text-align: center;
+        }
+        .note {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>纳指100 定投计算器</h2>
+        <div class="sub">五档PE + 年线偏离微调 · 支持自定义货币</div>
 
-一个简单的网页工具，根据 **PE 百分位** 和 **250 日均线偏离度** 自动计算纳指100的每日/每周定投金额。  
-支持自定义货币符号和金额区间，全球用户都可以使用。
+        <label>货币符号（例如：¥、$、€、£）</label>
+        <input type="text" id="currencySymbol" value="¥" placeholder="¥">
 
-## 功能特点
+        <label>最低定投金额（区间下限）</label>
+        <input type="number" id="minAmount" value="24.6" step="any" min="0">
 
-- 五档 PE 分位策略，自动判断当前估值水平
-- 年线偏离 ±20% 自动微调金额
-- 支持自定义货币符号（如 ¥、$、€、£）
-- 支持自定义最低、最高定投金额和微调幅度
-- 纯前端 HTML，无需联网即可使用（部署在 GitHub Pages 后在线访问）
+        <label>最高定投金额（区间上限）</label>
+        <input type="number" id="maxAmount" value="82" step="any" min="0">
 
-## 策略规则
+        <label>微调金额（年线偏离超过±20%时加减）</label>
+        <input type="number" id="adjustAmount" value="5" step="any" min="0">
 
-### 五档 PE 分位（纳指100 专用阈值）
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
-| 档位 | PE 分位区间 | 状态 | 基础金额（默认人民币） |
-|---|---|---|---|
-| 1 | < 20% | 极度低估 | 82 元 |
-| 2 | 20% ~ 50% | 低估 | 68 元 |
-| 3 | 50% ~ 80% | 正常 | 53 元 |
-| 4 | 80% ~ 95% | 高估 | 39 元 |
-| 5 | ≥ 95% | 极度高估 | 24.6 元 |
+        <label>PE 百分位（0-100，支持小数）</label>
+        <input type="number" id="peInput" placeholder="例如：45.5" min="0" max="100" step="any">
 
-### 年线偏离微调
+        <label>当前纳斯达克100价格</label>
+        <input type="number" id="priceInput" placeholder="例如：21000" step="any">
 
-- 价格偏离 250 日均线 **超过 +20%**：基础金额 **减 5 元**（或其他自定义微调值）
-- 价格偏离 250 日均线 **低于 -20%**：基础金额 **加 5 元**
-- 偏离在 ±20% 以内：不调整
+        <label>250日均线值</label>
+        <input type="number" id="ma250Input" placeholder="例如：18000" step="any">
 
-### 金额限制
+        <button onclick="calc()">计算金额</button>
 
-最终金额自动限制在用户设定的 **最低金额 ~ 最高金额** 之间（默认 24.6 ~ 82 元）。
+        <div class="result" id="result">
+            <div class="row" id="peRow"></div>
+            <div class="row" id="levelRow"></div>
+            <div class="row" id="baseRow"></div>
+            <div class="row" id="priceRow"></div>
+            <div class="row" id="maRow"></div>
+            <div class="row" id="devRow"></div>
+            <div class="row" id="adjustRow"></div>
+            <div class="detail">今日建议定投</div>
+            <div class="amount" id="amount"></div>
+            <div class="detail" id="note"></div>
+        </div>
+        <div class="note">* 默认人民币区间 24.6～82 元，可自行修改货币和金额</div>
+    </div>
 
-## 使用方法
+    <script>
+        // 五档对应的位置比例（0 ~ 1 之间）
+        // 原版：82,68,53,39,24.6 映射到 [0,1] 区间
+        const levelRatios = [1, 0.756, 0.495, 0.251, 0];
+        // 档位名称
+        const levelNames = [
+            '第1档：极度低估（PE < 20%）',
+            '第2档：低估（20% ≤ PE < 50%）',
+            '第3档：正常（50% ≤ PE < 80%）',
+            '第4档：高估（80% ≤ PE < 95%）',
+            '第5档：极度高估（PE ≥ 95%）'
+        ];
 
-1. 打开网页（在线访问地址见下方）
-2. 根据需要修改：
-   - 货币符号（默认 ¥）
-   - 最低定投金额（默认 24.6）
-   - 最高定投金额（默认 82）
-   - 微调金额（默认 5）
-3. 输入市场数据：
-   - PE 百分位（0-100，可从天天基金、雪球等平台查看）
-   - 当前纳斯达克100价格（指数点位）
-   - 250 日均线值（可在行情软件中查看）
-4. 点击“计算金额”，即可得到今日建议定投金额
+        function calc() {
+            // 读取自定义参数
+            const currencySymbol = document.getElementById('currencySymbol').value || '¥';
+            const minAmount = parseFloat(document.getElementById('minAmount').value);
+            const maxAmount = parseFloat(document.getElementById('maxAmount').value);
+            const adjustAmount = parseFloat(document.getElementById('adjustAmount').value);
 
-## 在线访问
+            // 验证自定义参数
+            if (isNaN(minAmount) || minAmount < 0) {
+                alert('请输入有效的最低定投金额');
+                return;
+            }
+            if (isNaN(maxAmount) || maxAmount <= minAmount) {
+                alert('请输入有效的最高定投金额（需大于最低金额）');
+                return;
+            }
+            if (isNaN(adjustAmount) || adjustAmount < 0) {
+                alert('请输入有效的微调金额');
+                return;
+            }
 
-部署后访问：`https://你的用户名.github.io/ndx-dingtou-calculator/`
+            // 读取市场数据
+            const peInput = document.getElementById('peInput').value;
+            const priceInput = document.getElementById('priceInput').value;
+            const ma250Input = document.getElementById('ma250Input').value;
 
-## 部署方法
+            const pe = parseFloat(peInput);
+            if (isNaN(pe) || pe < 0 || pe > 100) {
+                alert('请输入 0-100 之间的 PE 百分位数值');
+                return;
+            }
+            const price = parseFloat(priceInput);
+            if (isNaN(price) || price <= 0) {
+                alert('请输入有效的纳斯达克100当前价格');
+                return;
+            }
+            const ma250 = parseFloat(ma250Input);
+            if (isNaN(ma250) || ma250 <= 0) {
+                alert('请输入有效的250日均线值');
+                return;
+            }
 
-1. 将本仓库的 `index.html` 上传到 GitHub 仓库
-2. 在仓库 Settings → Pages 中开启 GitHub Pages
-3. 选择 `main` 分支和 `/root` 目录，保存
-4. 等待 1-2 分钟即可访问
+            // 根据最低最高生成五档基础金额
+            const range = maxAmount - minAmount;
+            const baseAmounts = levelRatios.map(ratio => minAmount + range * ratio);
+            // 保留一位小数
+            const roundedBase = baseAmounts.map(a => Math.round(a * 10) / 10);
 
-## 技术说明
+            // 判断PE档位
+            let levelIndex;
+            if (pe < 20) levelIndex = 0;
+            else if (pe < 50) levelIndex = 1;
+            else if (pe < 80) levelIndex = 2;
+            else if (pe < 95) levelIndex = 3;
+            else levelIndex = 4;
 
-- 纯 HTML + CSS + JavaScript，无外部依赖
-- 五档金额按比例自动生成，适应不同货币和预算
-- 所有计算在浏览器本地完成，不上传任何数据
+            const baseAmount = roundedBase[levelIndex];
+            const levelName = levelNames[levelIndex];
 
-## 免责声明
+            // 计算年线偏离度
+            const deviation = (price - ma250) / ma250 * 100;
 
-本工具仅供个人定投参考，不构成投资建议。投资有风险，决策需谨慎。
+            // 微调
+            let finalAmount = baseAmount;
+            let adjustNote = '';
+            if (deviation > 20) {
+                finalAmount = baseAmount - adjustAmount;
+                adjustNote = `年线偏离 +${deviation.toFixed(2)}% > 20%，基础金额减 ${adjustAmount}`;
+            } else if (deviation < -20) {
+                finalAmount = baseAmount + adjustAmount;
+                adjustNote = `年线偏离 ${deviation.toFixed(2)}% < -20%，基础金额加 ${adjustAmount}`;
+            } else {
+                adjustNote = `年线偏离 ${deviation.toFixed(2)}%，未超过±20%，不调整`;
+            }
+
+            // 限制在最低最高之间
+            finalAmount = Math.max(minAmount, Math.min(maxAmount, finalAmount));
+            finalAmount = Math.round(finalAmount * 10) / 10;
+
+            // 显示结果
+            document.getElementById('peRow').textContent = `PE 百分位：${pe.toFixed(2)}%`;
+            document.getElementById('levelRow').textContent = `档位判断：${levelName}`;
+            document.getElementById('baseRow').textContent = `基础金额：${currencySymbol}${baseAmount}`;
+            document.getElementById('priceRow').textContent = `当前纳指价格：${price}`;
+            document.getElementById('maRow').textContent = `250日均线：${ma250}`;
+            document.getElementById('devRow').textContent = `年线偏离度：${deviation.toFixed(2)}%`;
+            document.getElementById('adjustRow').textContent = `微调说明：${adjustNote}`;
+            document.getElementById('amount').textContent = `${currencySymbol}${finalAmount}`;
+            document.getElementById('note').textContent = `五档PE + 年线偏离自动微调 · 区间 ${currencySymbol}${minAmount} ~ ${currencySymbol}${maxAmount}`;
+
+            document.getElementById('result').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
