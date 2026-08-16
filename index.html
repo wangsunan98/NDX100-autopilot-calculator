@@ -70,6 +70,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: background 0.2s;
+            margin-top: 10px;
         }
         button:active {
             background: #2563eb;
@@ -78,7 +79,7 @@
             background: #f3f4f6;
             color: #374151;
             border: 1px solid #d1d5db;
-            margin-top: 15px;
+            margin-top: 10px;
             font-size: 15px;
             padding: 10px;
             border-radius: 8px;
@@ -127,6 +128,14 @@
         .settings-section {
             display: none;
         }
+        .range-preview {
+            font-size: 14px;
+            color: #1e40af;
+            background: #e0e7ff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -155,11 +164,9 @@
             <label>货币符号（默认 ¥）</label>
             <input type="text" id="currencySymbol" value="¥" placeholder="¥">
 
-            <label>最低定投金额（区间下限）</label>
-            <input type="number" id="minAmount" value="24.6" step="any" min="0">
-
-            <label>最高定投金额（区间上限）</label>
-            <input type="number" id="maxAmount" value="82" step="any" min="0">
+            <label>定投中间值（正常档位金额）</label>
+            <input type="number" id="midAmount" value="53" step="any" min="0" oninput="updateRangePreview()">
+            <div class="range-preview" id="rangePreview"></div>
 
             <label>微调金额（年线偏离超过±20%时加减）</label>
             <input type="number" id="adjustAmount" value="5" step="any" min="0">
@@ -179,7 +186,7 @@
             <div class="amount" id="amount"></div>
             <div class="detail" id="note"></div>
         </div>
-        <div class="note">* 必填项 | 默认人民币区间 24.6～82 元，可自行修改</div>
+        <div class="note">* 必填项 | 默认人民币区间 24.6～82 元，可自行修改中间值</div>
     </div>
 
     <script>
@@ -196,6 +203,24 @@
             }
         }
 
+        // 根据中间值更新区间预览
+        function updateRangePreview() {
+            const mid = parseFloat(document.getElementById('midAmount').value);
+            const currencySymbol = document.getElementById('currencySymbol').value || '¥';
+            if (isNaN(mid) || mid <= 0) {
+                document.getElementById('rangePreview').textContent = '请输入有效的中间值';
+                return;
+            }
+            const minAmount = Math.round(mid * (24.6 / 53) * 10) / 10;
+            const maxAmount = Math.round(mid * (82 / 53) * 10) / 10;
+            document.getElementById('rangePreview').textContent = `自动生成区间：${currencySymbol}${minAmount} ~ ${currencySymbol}${maxAmount}`;
+        }
+
+        // 页面加载时初始化预览
+        window.onload = function() {
+            updateRangePreview();
+        };
+
         // 五档对应的位置比例（0 ~ 1 之间）
         // 原版：82,68,53,39,24.6 映射到 [0,1] 区间
         const levelRatios = [1, 0.756, 0.495, 0.251, 0];
@@ -211,23 +236,22 @@
         function calc() {
             // 读取自定义参数（折叠区默认隐藏，但值仍存在）
             const currencySymbol = document.getElementById('currencySymbol').value || '¥';
-            const minAmount = parseFloat(document.getElementById('minAmount').value);
-            const maxAmount = parseFloat(document.getElementById('maxAmount').value);
+            const midAmount = parseFloat(document.getElementById('midAmount').value);
             const adjustAmount = parseFloat(document.getElementById('adjustAmount').value);
 
-            // 验证自定义参数
-            if (isNaN(minAmount) || minAmount < 0) {
-                alert('请输入有效的最低定投金额');
-                return;
-            }
-            if (isNaN(maxAmount) || maxAmount <= minAmount) {
-                alert('请输入有效的最高定投金额（需大于最低金额）');
+            // 验证中间值和微调金额
+            if (isNaN(midAmount) || midAmount <= 0) {
+                alert('请输入有效的定投中间值');
                 return;
             }
             if (isNaN(adjustAmount) || adjustAmount < 0) {
                 alert('请输入有效的微调金额');
                 return;
             }
+
+            // 根据中间值自动生成最低和最高金额
+            const minAmount = Math.round(midAmount * (24.6 / 53) * 10) / 10;
+            const maxAmount = Math.round(midAmount * (82 / 53) * 10) / 10;
 
             // 读取市场数据
             const peInput = document.getElementById('peInput').value;
@@ -283,7 +307,7 @@
                 adjustNote = `年线偏离 ${deviation.toFixed(2)}%，未超过±20%，不调整`;
             }
 
-            // 限制在最低最高之间
+            // 限制在自动生成的最低最高之间
             finalAmount = Math.max(minAmount, Math.min(maxAmount, finalAmount));
             finalAmount = Math.round(finalAmount * 10) / 10;
 
