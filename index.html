@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纳指100 每日定投计算器（五档PE）</title>
+    <style>
+        body {
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f5f6fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            max-width: 420px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #1f2937;
+            font-size: 22px;
+        }
+        .sub {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 6px;
+            color: #374151;
+            font-weight: 500;
+            margin-top: 15px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            background: white;
+        }
+        button {
+            width: 100%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        button:active {
+            background: #2563eb;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 16px;
+            background: #f0f9ff;
+            border-radius: 10px;
+            display: none;
+        }
+        .result .row {
+            margin: 8px 0;
+            font-size: 15px;
+            color: #374151;
+        }
+        .result .amount {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 8px 0;
+            text-align: center;
+        }
+        .result .detail {
+            font-size: 14px;
+            color: #475569;
+            text-align: center;
+        }
+        .note {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>纳指100 每日定投计算器</h2>
+        <div class="sub">五档PE + 年线偏离自动微调</div>
+
+        <label>PE 百分位（0-100，支持小数）</label>
+        <input type="number" id="peInput" placeholder="例如：45.5" min="0" max="100" step="any">
+
+        <label>当前纳斯达克100价格</label>
+        <input type="number" id="priceInput" placeholder="例如：21000" step="any">
+
+        <label>250日均线值</label>
+        <input type="number" id="ma250Input" placeholder="例如：18000" step="any">
+
+        <button onclick="calc()">计算金额</button>
+
+        <div class="result" id="result">
+            <div class="row" id="peRow"></div>
+            <div class="row" id="levelRow"></div>
+            <div class="row" id="baseRow"></div>
+            <div class="row" id="priceRow"></div>
+            <div class="row" id="maRow"></div>
+            <div class="row" id="devRow"></div>
+            <div class="row" id="adjustRow"></div>
+            <div class="detail">今日建议定投</div>
+            <div class="amount" id="amount"></div>
+            <div class="detail" id="note"></div>
+        </div>
+        <div class="note">* 金额区间：24.6元 ~ 82元 | 年线偏离超过±20%时自动加减5元</div>
+    </div>
+
+    <script>
+        function calc() {
+            // 获取输入
+            const peInput = document.getElementById('peInput').value;
+            const priceInput = document.getElementById('priceInput').value;
+            const ma250Input = document.getElementById('ma250Input').value;
+
+            // 验证PE
+            const pe = parseFloat(peInput);
+            if (isNaN(pe) || pe < 0 || pe > 100) {
+                alert('请输入 0-100 之间的 PE 百分位数值');
+                return;
+            }
+
+            // 验证价格和均线
+            const price = parseFloat(priceInput);
+            const ma250 = parseFloat(ma250Input);
+            if (isNaN(price) || price <= 0) {
+                alert('请输入有效的纳斯达克100当前价格');
+                return;
+            }
+            if (isNaN(ma250) || ma250 <= 0) {
+                alert('请输入有效的250日均线值');
+                return;
+            }
+
+            // 五档PE判断（纳指100专用阈值）
+            let baseAmount, levelName;
+            if (pe < 20) {
+                baseAmount = 82;
+                levelName = '第1档：极度低估（PE < 20%）';
+            } else if (pe < 50) {
+                baseAmount = 68;
+                levelName = '第2档：低估（20% ≤ PE < 50%）';
+            } else if (pe < 80) {
+                baseAmount = 53;
+                levelName = '第3档：正常（50% ≤ PE < 80%）';
+            } else if (pe < 95) {
+                baseAmount = 39;
+                levelName = '第4档：高估（80% ≤ PE < 95%）';
+            } else {
+                baseAmount = 24.6;
+                levelName = '第5档：极度高估（PE ≥ 95%）';
+            }
+
+            // 计算年线偏离度
+            const deviation = (price - ma250) / ma250 * 100;
+
+            // 微调判断
+            let finalAmount = baseAmount;
+            let adjustNote = '';
+            if (deviation > 20) {
+                finalAmount = baseAmount - 5;
+                adjustNote = `年线偏离 +${deviation.toFixed(2)}% > 20%，基础金额减5元`;
+            } else if (deviation < -20) {
+                finalAmount = baseAmount + 5;
+                adjustNote = `年线偏离 ${deviation.toFixed(2)}% < -20%，基础金额加5元`;
+            } else {
+                adjustNote = `年线偏离 ${deviation.toFixed(2)}%，未超过±20%，不调整`;
+            }
+
+            // 限制在24.6 ~ 82元之间
+            finalAmount = Math.max(24.6, Math.min(82, finalAmount));
+            // 保留一位小数
+            finalAmount = Math.round(finalAmount * 10) / 10;
+
+            // 显示结果
+            document.getElementById('peRow').textContent = `PE 百分位：${pe.toFixed(2)}%`;
+            document.getElementById('levelRow').textContent = `档位判断：${levelName}`;
+            document.getElementById('baseRow').textContent = `基础金额：${baseAmount} 元`;
+            document.getElementById('priceRow').textContent = `当前纳指价格：${price}`;
+            document.getElementById('maRow').textContent = `250日均线：${ma250}`;
+            document.getElementById('devRow').textContent = `年线偏离度：${deviation.toFixed(2)}%`;
+            document.getElementById('adjustRow').textContent = `微调说明：${adjustNote}`;
+            document.getElementById('amount').textContent = `${finalAmount} 元`;
+            document.getElementById('note').textContent = '纳指100 · 每日定投（五档PE + 年线偏离自动微调）';
+
+            document.getElementById('result').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
