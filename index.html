@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>纳指100 定投计算器（多货币可定制）</title>
+    <title>NDX Autopilot Calculator</title>
     <style>
         body {
             font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -44,6 +44,11 @@
             font-weight: 500;
             margin-top: 15px;
         }
+        .required {
+            color: #ef4444;
+            font-weight: 700;
+            margin-left: 2px;
+        }
         input {
             width: 100%;
             padding: 12px;
@@ -64,11 +69,25 @@
             font-size: 17px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 10px;
             transition: background 0.2s;
         }
         button:active {
             background: #2563eb;
+        }
+        .toggle-btn {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            margin-top: 15px;
+            font-size: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-btn:active {
+            background: #e5e7eb;
         }
         .result {
             margin-top: 25px;
@@ -100,35 +119,51 @@
             margin-top: 8px;
             text-align: center;
         }
+        hr {
+            border: none;
+            border-top: 1px solid #e5e7eb;
+            margin: 20px 0;
+        }
+        .settings-section {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>纳指100 定投计算器</h2>
+        <h2>NDX Autopilot Calculator</h2>
         <div class="sub">五档PE + 年线偏离微调 · 支持自定义货币</div>
 
-        <label>货币符号（例如：¥、$、€、£）</label>
-        <input type="text" id="currencySymbol" value="¥" placeholder="¥">
-
-        <label>最低定投金额（区间下限）</label>
-        <input type="number" id="minAmount" value="24.6" step="any" min="0">
-
-        <label>最高定投金额（区间上限）</label>
-        <input type="number" id="maxAmount" value="82" step="any" min="0">
-
-        <label>微调金额（年线偏离超过±20%时加减）</label>
-        <input type="number" id="adjustAmount" value="5" step="any" min="0">
-
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-
-        <label>PE 百分位（0-100，支持小数）</label>
+        <!-- 上方：必填市场数据 -->
+        <label>PE 百分位 <span class="required">*</span></label>
         <input type="number" id="peInput" placeholder="例如：45.5" min="0" max="100" step="any">
 
-        <label>当前纳斯达克100价格</label>
+        <label>当前纳斯达克100价格 <span class="required">*</span> (可以使用通达信电脑端或者app或其他查看当前纳斯达克100价格)</label>
         <input type="number" id="priceInput" placeholder="例如：21000" step="any">
 
-        <label>250日均线值</label>
+        <label>250日均线值 <span class="required">*</span> (设置ma参数为250)</label>
         <input type="number" id="ma250Input" placeholder="例如：18000" step="any">
+
+        <!-- 折叠按钮 -->
+        <button type="button" class="toggle-btn" id="toggleSettingsBtn" onclick="toggleSettings()">
+            ⚙️ 展开自定义设置（可选）
+        </button>
+
+        <!-- 下方：自定义参数，默认折叠 -->
+        <div class="settings-section" id="settingsSection">
+            <hr>
+            <label>货币符号（默认 ¥）</label>
+            <input type="text" id="currencySymbol" value="¥" placeholder="¥">
+
+            <label>最低定投金额（区间下限）</label>
+            <input type="number" id="minAmount" value="24.6" step="any" min="0">
+
+            <label>最高定投金额（区间上限）</label>
+            <input type="number" id="maxAmount" value="82" step="any" min="0">
+
+            <label>微调金额（年线偏离超过±20%时加减）</label>
+            <input type="number" id="adjustAmount" value="5" step="any" min="0">
+        </div>
 
         <button onclick="calc()">计算金额</button>
 
@@ -144,10 +179,23 @@
             <div class="amount" id="amount"></div>
             <div class="detail" id="note"></div>
         </div>
-        <div class="note">* 默认人民币区间 24.6～82 元，可自行修改货币和金额</div>
+        <div class="note">* 必填项 | 默认人民币区间 24.6～82 元，可自行修改</div>
     </div>
 
     <script>
+        // 折叠面板切换
+        function toggleSettings() {
+            const section = document.getElementById('settingsSection');
+            const btn = document.getElementById('toggleSettingsBtn');
+            if (section.style.display === 'none' || section.style.display === '') {
+                section.style.display = 'block';
+                btn.textContent = '收起自定义设置';
+            } else {
+                section.style.display = 'none';
+                btn.textContent = '⚙️ 展开自定义设置（可选）';
+            }
+        }
+
         // 五档对应的位置比例（0 ~ 1 之间）
         // 原版：82,68,53,39,24.6 映射到 [0,1] 区间
         const levelRatios = [1, 0.756, 0.495, 0.251, 0];
@@ -161,7 +209,7 @@
         ];
 
         function calc() {
-            // 读取自定义参数
+            // 读取自定义参数（折叠区默认隐藏，但值仍存在）
             const currencySymbol = document.getElementById('currencySymbol').value || '¥';
             const minAmount = parseFloat(document.getElementById('minAmount').value);
             const maxAmount = parseFloat(document.getElementById('maxAmount').value);
